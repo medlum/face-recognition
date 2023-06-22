@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta
+			name="viewport"
+			content="width=device-width, initial-scale=1.0"
+		/>
+		<title>Camera App</title>
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.6.2/socket.io.js"></script>
+		<link
+			rel="stylesheet"
+			type="text/css"
+			href="{{url_for('static', filename='css/styles.css')}}"
+		/>
+	</head>
+	<body>
+		<div id="header">
+			<h2>Face Photo Booth</h2>
+
+			<div id="video-container">
+				<video
+					id="video"
+					autoplay
+				></video>
+				<div id="canvas-container">
+					<h2 id="canvas-header">Face Photo Preview</h2>
+					<canvas
+						id="canvas"
+						width="300"
+						height="300"
+					>
+					</canvas>
+					<span id="image-count"></span>
+					<p id="image-reminder">Is your face well-lit and visible?</p>
+					<button
+						id="confirm-photo"
+						hidden="true"
+						onclick="videoOff()"
+					>
+						Completed
+					</button>
+				</div>
+			</div>
+			<p>Welcome <span id="username"> </span> !</p>
+			<!--
+			<img
+				id="header-profile"
+				src="{{url_for('static', filename='user.svg')}}"
+				alt=""
+			/>
+			-->
+			<p id="face-description">
+				Take 5 images of your face at approximately 45° angles
+			</p>
+			<p id="face-angle">
+				You can start by the front view, then turn slight left, then right, up
+				and down. <br />
+				Your whole face needs to be visible for this to work.
+			</p>
+			<button id="start-camera">Start Camera</button>
+			<button id="click-photo">Capture Face</button>
+		</div>
+
+		<!--<button id="proceed">Proceed</button> -->
+
+		<div id="canvas-container">
+			<h2 id="canvas-header">Face Photo Preview</h2>
+			<canvas
+				id="canvas"
+				width="300"
+				height="300"
+			>
+			</canvas>
+			<span id="image-count"></span>
+			<p id="image-reminder">Is your face well-lit and visible?</p>
+			<button
+				id="confirm-photo"
+				hidden="true"
+				onclick="videoOff()"
+			>
+				Completed
+			</button>
+		</div>
+
+		<div id="image-train"></div>
+	</body>
+
+	<script>
+		let click_count = 1;
+		let username = localStorage.getItem("username");
+		let socket = io();
+		let camera_button = document.querySelector("#start-camera");
+		let video = document.querySelector("#video");
+		let click_button = document.querySelector("#click-photo");
+		let proceed_button = document.querySelector("#proceed");
+		let canvas = document.querySelector("#canvas");
+		let canvas_container = document.querySelector("#canvas-container");
+		let image_count = document.querySelector("#image-count");
+		let complete_button = document.querySelector("#confirm-photo");
+
+		// insert username from login back
+		document
+			.getElementById("username")
+			.insertAdjacentHTML("beforeend", username);
+
+		// open camera io at 'start camera' btn click
+
+		camera_button.addEventListener("click", async function () {
+			let stream = await navigator.mediaDevices.getUserMedia({
+				video: true,
+				audio: false,
+			});
+			video.style.background = "none";
+			video.srcObject = stream;
+		});
+
+		// open canvas at 'capture face' btn click
+
+		click_button.addEventListener("click", function () {
+			canvas_container.style.display = "block";
+
+			canvas
+				.getContext("2d")
+				.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+			let image_data_url = [
+				click_count,
+				canvas.toDataURL("image/jpeg"),
+				username,
+			];
+
+			socket.emit("image_data_url", image_data_url);
+			image_count.innerHTML = `Image ${click_count}`;
+
+			click_count += 1;
+			console.log(image_data_url[0]);
+			if (click_count == 6) {
+				click_button.disabled = true;
+				click_button.style.background = "red";
+				complete_button.disabled = false;
+				complete_button.hidden = false;
+				socket.emit("complete_button", complete_button.disabled);
+				console.log(complete_button.disabled);
+			}
+		});
+
+		function videoOff() {
+			video.srcObject.getTracks()[0].stop();
+			//video.pause();
+			video.src = "";
+			//video.style.background = "white";
+			console.log("Vid off");
+		}
+
+		// data url of the image
+		//console.log(image_data_url);});
+	</script>
+</html>
